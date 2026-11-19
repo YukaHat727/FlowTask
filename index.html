@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow - Quản lý Tác vụ</title>
+  <!-- Font: Be Vietnam Pro (nội dung, thiết kế cho tiếng Việt) + Bricolage Grotesque (tiêu đề, con số) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet" />
+  <meta name="description" content="TaskFlow - ứng dụng quản lý tác vụ, lịch và thống kê hiệu suất." />
+  <meta name="theme-color" content="#2f4fcc" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+  <script>
+    /* Bảng màu: xám pha xanh lục (mực & giấy) + một màu nhấn cobalt duy nhất */
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'system-ui', 'sans-serif'],
+            display: ['"Bricolage Grotesque"', '"Be Vietnam Pro"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              50: '#f4f6f5', 100: '#e9eeec', 200: '#d9e1de', 300: '#bcc8c4', 400: '#8a9c97',
+              500: '#62756f', 600: '#485a55', 700: '#34443f', 800: '#1f2d2b', 900: '#14201f', 950: '#0c1514',
+            },
+            indigo: {
+              50: '#eef1fe', 100: '#dde3fc', 200: '#bfcbfa', 300: '#93a7f5', 400: '#6683ee',
+              500: '#4163e3', 600: '#2f4fcc', 700: '#263fa6', 800: '#223585', 900: '#1f2e69', 950: '#141c40',
+            },
+          },
+          borderRadius: { xl: '0.5rem', '2xl': '0.625rem', '3xl': '0.75rem' },
+          boxShadow: { sm: 'none', md: '0 1px 3px rgba(20,32,31,0.10)' },
+        },
+      },
+    };
+  </script>
+  <!-- CSS tùy chỉnh -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased transition-colors duration-200 min-h-screen flex flex-col pb-20 md:pb-0">
+
+  <!-- ==================== HEADER & TOP NAVIGATION ==================== -->
+  <header class="sticky top-0 z-30 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Logo -->
+      <button type="button" data-nav="home" class="flex items-center gap-2.5 text-left shrink-0 rounded-lg focus-visible:outline-2">
+        <span class="w-8 h-8 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center">
+          <i data-lucide="check" class="w-5 h-5"></i>
+        </span>
+        <span class="font-display text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">TaskFlow</span>
+      </button>
+
+      <!-- Điều hướng chính (desktop): tab gạch chân -->
+      <nav aria-label="Điều hướng chính" class="hidden md:flex items-stretch self-stretch gap-2">
+        <button type="button" data-nav="home" class="top-nav-btn"><i data-lucide="home" class="w-4 h-4"></i><span>Trang chủ</span></button>
+        <button type="button" data-nav="tasks" class="top-nav-btn"><i data-lucide="list-todo" class="w-4 h-4"></i><span>Tác vụ</span></button>
+        <button type="button" data-nav="calendar" class="top-nav-btn"><i data-lucide="calendar" class="w-4 h-4"></i><span>Lịch</span></button>
+        <button type="button" data-nav="stats" class="top-nav-btn"><i data-lucide="bar-chart-3" class="w-4 h-4"></i><span>Thống kê</span></button>
+      </nav>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          id="themeToggleBtn"
+          type="button"
+          aria-label="Chuyển đổi giao diện sáng/tối"
+          title="Chuyển đổi giao diện sáng/tối"
+          class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors"
+        >
+          <i id="sunIcon" data-lucide="sun" class="w-5 h-5 hidden text-amber-400"></i>
+          <i id="moonIcon" data-lucide="moon" class="w-5 h-5"></i>
+        </button>
+
+        <button
+          id="openAddModalBtn"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-colors"
+        >
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Thêm tác vụ</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+  <nav
+    aria-label="Điều hướng di động"
+    class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5"
+  >
+    <div class="grid grid-cols-4 gap-1 max-w-md mx-auto">
+      <button
+        type="button"
+        data-nav="home"
+        class="bottom-nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-xs font-medium transition-colors"
+      >
+        <i data-lucide="home" class="w-5 h-5 mb-0.5"></i>
+        <span>Trang chủ</span>
+      </button>
+      <button
+        type="button"
+        data-nav="tasks"
+        class="bottom-nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-xs font-medium transition-colors"
+      >
+        <i data-lucide="list-todo" class="w-5 h-5 mb-0.5"></i>
+        <span>Tác vụ</span>
+      </button>
+      <button
+        type="button"
+        data-nav="calendar"
+        class="bottom-nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-xs font-medium transition-colors"
+      >
+        <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+        <span>Lịch</span>
+      </button>
+      <button
+        type="button"
+        data-nav="stats"
+        class="bottom-nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-xs font-medium transition-colors"
+      >
+        <i data-lucide="bar-chart-3" class="w-5 h-5 mb-0.5"></i>
+        <span>Thống kê</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+    <!-- ===================================================================== -->
+    <!-- PHÂN HỆ 1: TRANG CHỦ (HOME)                                           -->
+    <!-- ===================================================================== -->
+    <section id="section-home" class="page-section space-y-10">
+      <!-- Phần đầu: con số ngày là điểm nhấn của cả trang -->
+      <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-end gap-5 sm:gap-8 min-w-0">
+          <p id="homeDayNumber" aria-hidden="true" class="font-display font-extrabold text-8xl sm:text-9xl leading-[0.78] tracking-tighter text-slate-900 dark:text-white tabular-nums select-none">--</p>
+          <div class="min-w-0 pb-1 space-y-1.5">
+            <p id="homeCurrentDateText" class="text-sm font-medium text-slate-500 dark:text-slate-400">Hôm nay</p>
+            <h1 id="homeGreetingTitle" class="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Chào buổi sáng</h1>
+            <p id="homeGreetingSubtitle" class="text-sm text-slate-600 dark:text-slate-300 max-w-md">Đang tải công việc của bạn…</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            data-nav="tasks"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium text-sm transition-colors"
+          >
+            <span>Xem tất cả tác vụ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tiến độ + số liệu: một khối liền, ngăn bằng đường kẻ -->
+      <div class="space-y-3">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="font-display text-base font-bold text-slate-900 dark:text-white">Tiến độ hoàn thành</h2>
+          <span id="homeProgressPercentText" class="text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">0%</span>
+        </div>
+        <div class="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden" role="progressbar" aria-label="Tiến độ hoàn thành tổng thể" aria-valuemin="0" aria-valuemax="100">
+          <div id="homeProgressBarFill" class="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+        </div>
+
+        <dl class="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-200 dark:bg-slate-800">
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+            <dt class="text-sm text-slate-500 dark:text-slate-400">Tổng tác vụ</dt>
+            <dd id="homeKpiTotal" class="font-display text-3xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">0</dd>
+          </div>
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+            <dt class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span>Cần làm</dt>
+            <dd id="homeKpiTodo" class="font-display text-3xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">0</dd>
+          </div>
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+            <dt class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Đang thực hiện</dt>
+            <dd id="homeKpiInProgress" class="font-display text-3xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">0</dd>
+          </div>
+          <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+            <dt class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Đã hoàn thành</dt>
+            <dd id="homeKpiDone" class="font-display text-3xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">0</dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Danh sách việc: không đóng khung, chỉ dùng đường kẻ tiêu đề -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-x-10 gap-y-10">
+        <div class="lg:col-span-7 flex flex-col">
+          <div class="flex items-baseline justify-between gap-3 pb-3 mb-4 border-b-2 border-slate-900 dark:border-slate-100">
+            <div>
+              <h2 class="font-display text-lg font-bold text-slate-900 dark:text-white">Hôm nay và sắp tới</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Đến hạn hôm nay hoặc trong 3 ngày tới</p>
+            </div>
+            <span id="homeUpcomingCountBadge" class="text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">0</span>
+          </div>
+          <div id="homeUpcomingList" class="space-y-2.5 flex-1"></div>
+        </div>
+
+        <div class="lg:col-span-5 flex flex-col">
+          <div class="flex items-baseline justify-between gap-3 pb-3 mb-4 border-b-2 border-rose-600 dark:border-rose-400">
+            <div>
+              <h2 class="font-display text-lg font-bold text-rose-700 dark:text-rose-300">Quá hạn</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cần xử lý trước</p>
+            </div>
+            <span id="homeOverdueCountBadge" class="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-300">0</span>
+          </div>
+          <div id="homeOverdueList" class="space-y-2.5 flex-1"></div>
+        </div>
+      </div>
+
+      <!-- Tuần này + mẹo -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-x-10 gap-y-8 pt-8 border-t border-slate-200 dark:border-slate-800">
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-end justify-between gap-3">
+            <div>
+              <h2 class="font-display text-lg font-bold text-slate-900 dark:text-white">Lịch tuần này</h2>
+              <p id="homeWeekSummarySubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Chọn một ngày để xem chi tiết trên Lịch</p>
+            </div>
+            <button type="button" data-nav="calendar" class="text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:underline inline-flex items-center gap-1">
+              <span>Mở lịch tháng</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div id="homeWeekStrip" class="grid grid-cols-7 gap-1.5 sm:gap-2.5"></div>
+        </div>
+
+        <aside class="lg:col-span-5 border-l-2 border-amber-500 pl-5 flex flex-col justify-between gap-4" aria-label="Mẹo năng suất">
+          <div class="space-y-2">
+            <p class="text-sm font-semibold text-amber-700 dark:text-amber-300">Mẹo hôm nay</p>
+            <h3 id="productivityTipTitle" class="font-display text-lg font-bold text-slate-900 dark:text-white">Quy tắc 2 phút</h3>
+            <p id="productivityTipBody" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-md">
+              Nếu một tác vụ chỉ mất dưới 2 phút để hoàn thành, hãy làm ngay thay vì để vào danh sách chờ.
+            </p>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm">
+            <span id="productivityTipIndex" class="tabular-nums text-slate-500 dark:text-slate-400">1 / 5</span>
+            <button id="nextTipBtn" type="button" class="font-medium text-indigo-600 dark:text-indigo-300 hover:underline inline-flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Mẹo khác</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PHÂN HỆ 2: TÁC VỤ (DANH SÁCH & BẢNG KANBAN)                           -->
+    <!-- ===================================================================== -->
+    <section id="section-tasks" class="page-section hidden space-y-5">
+      <!-- Tiêu đề phân hệ -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Quản lý Tác vụ</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Tìm kiếm, lọc và tổ chức công việc theo Danh sách hoặc Bảng Kanban</p>
+        </div>
+
+        <!-- Chuyển đổi chế độ xem: Danh sách / Kanban -->
+        <div class="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 self-start sm:self-auto" role="group" aria-label="Chế độ hiển thị">
+          <button
+            id="viewListBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
+          >
+            <i data-lucide="layout-list" class="w-4 h-4"></i>
+            <span>Danh sách</span>
+          </button>
+          <button
+            id="viewKanbanBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          >
+            <i data-lucide="columns-3" class="w-4 h-4"></i>
+            <span>Bảng Kanban</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Thanh công cụ tìm kiếm & bộ lọc -->
+      <div aria-label="Tìm kiếm và bộ lọc" class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+          <!-- Ô tìm kiếm -->
+          <div class="relative flex-1 min-w-[220px]">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Tìm kiếm theo tiêu đề hoặc mô tả tác vụ..."
+              class="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-colors"
+            />
+            <button
+              id="clearSearchBtn"
+              type="button"
+              title="Xóa tìm kiếm"
+              class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+            >
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Các bộ lọc -->
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+            <!-- Lọc Mức độ ưu tiên -->
+            <select
+              id="filterPriority"
+              aria-label="Lọc theo mức độ ưu tiên"
+              class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="all">Ưu tiên: Tất cả</option>
+              <option value="high">Ưu tiên: Cao</option>
+              <option value="medium">Ưu tiên: Trung bình</option>
+              <option value="low">Ưu tiên: Thấp</option>
+            </select>
+
+            <!-- Lọc Danh mục -->
+            <select
+              id="filterCategory"
+              aria-label="Lọc theo danh mục"
+              class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="all">Danh mục: Tất cả</option>
+              <option value="work">Công việc</option>
+              <option value="personal">Cá nhân</option>
+              <option value="study">Học tập</option>
+              <option value="health">Sức khỏe</option>
+              <option value="other">Khác</option>
+            </select>
+
+            <!-- Lọc Trạng thái -->
+            <select
+              id="filterStatus"
+              aria-label="Lọc theo trạng thái"
+              class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="all">Trạng thái: Tất cả</option>
+              <option value="todo">Cần làm</option>
+              <option value="in_progress">Đang thực hiện</option>
+              <option value="done">Đã hoàn thành</option>
+            </select>
+
+            <!-- Sắp xếp -->
+            <select
+              id="sortSelect"
+              aria-label="Sắp xếp tác vụ"
+              class="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="dueDate">Sắp xếp: Hạn chót</option>
+              <option value="priority">Sắp xếp: Ưu tiên</option>
+              <option value="newest">Sắp xếp: Mới nhất</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chế độ Danh sách (List View) -->
+      <div id="listViewContainer" class="space-y-3"></div>
+
+      <!-- Chế độ Bảng Kanban (Kanban Board) -->
+      <div id="kanbanViewContainer" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
+        <!-- Cột 1: Cần làm -->
+        <div
+          data-status="todo"
+          class="kanban-column bg-slate-100/80 dark:bg-slate-900/70 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 transition-all min-h-[340px]"
+        >
+          <div class="flex items-center justify-between mb-3.5 px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+              <h2 class="font-semibold text-sm text-slate-800 dark:text-slate-200">Cần làm</h2>
+            </div>
+            <span id="kanbanCountTodo" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">0</span>
+          </div>
+          <div id="kanbanListTodo" class="space-y-3 min-h-[260px]"></div>
+        </div>
+
+        <!-- Cột 2: Đang thực hiện -->
+        <div
+          data-status="in_progress"
+          class="kanban-column bg-amber-50/40 dark:bg-slate-900/70 rounded-2xl p-4 border border-amber-200/60 dark:border-slate-800 transition-all min-h-[340px]"
+        >
+          <div class="flex items-center justify-between mb-3.5 px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              <h2 class="font-semibold text-sm text-slate-800 dark:text-slate-200">Đang thực hiện</h2>
+            </div>
+            <span id="kanbanCountInProgress" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">0</span>
+          </div>
+          <div id="kanbanListInProgress" class="space-y-3 min-h-[260px]"></div>
+        </div>
+
+        <!-- Cột 3: Hoàn thành -->
+        <div
+          data-status="done"
+          class="kanban-column bg-emerald-50/40 dark:bg-slate-900/70 rounded-2xl p-4 border border-emerald-200/60 dark:border-slate-800 transition-all min-h-[340px]"
+        >
+          <div class="flex items-center justify-between mb-3.5 px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <h2 class="font-semibold text-sm text-slate-800 dark:text-slate-200">Đã hoàn thành</h2>
+            </div>
+            <span id="kanbanCountDone" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">0</span>
+          </div>
+          <div id="kanbanListDone" class="space-y-3 min-h-[260px]"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PHÂN HỆ 3: LỊCH (CALENDAR)                                            -->
+    <!-- ===================================================================== -->
+    <section id="section-calendar" class="page-section hidden space-y-5">
+      <!-- Header điều khiển Lịch -->
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-5 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h1 id="calendarMonthTitle" class="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white capitalize">
+            Tháng 11, 2026
+          </h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Chọn một ngày để xem chi tiết hoặc thêm tác vụ.</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            id="calPrevMonthBtn"
+            type="button"
+            aria-label="Tháng trước"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          >
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <button
+            id="calTodayBtn"
+            type="button"
+            class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          >
+            Hôm nay
+          </button>
+          <button
+            id="calNextMonthBtn"
+            type="button"
+            aria-label="Tháng sau"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          >
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lưới Lịch tháng & Bảng chi tiết ngày được chọn -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <!-- Lưới Lịch tháng (8/12 cột trên desktop) -->
+        <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl p-3 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <!-- Tiêu đề các thứ trong tuần (Thứ 2 -> Chủ Nhật) -->
+          <div class="grid grid-cols-7 gap-1 sm:gap-1.5 mb-2 text-center">
+            <div class="py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">T2</div>
+            <div class="py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">T3</div>
+            <div class="py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">T4</div>
+            <div class="py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">T5</div>
+            <div class="py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">T6</div>
+            <div class="py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400">T7</div>
+            <div class="py-1.5 text-xs font-semibold text-rose-500 dark:text-rose-400">CN</div>
+          </div>
+
+          <!-- Các ô ngày trong tháng -->
+          <div id="calendarGrid" class="grid grid-cols-7 gap-1 sm:gap-1.5"></div>
+
+          <!-- Chú thích màu sắc -->
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <span class="font-medium text-slate-700 dark:text-slate-300">Mức ưu tiên:</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Cao</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Trung bình</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>Thấp</span>
+          </div>
+        </div>
+
+        <!-- Bảng chi tiết ngày được chọn (4/12 cột trên desktop) -->
+        <aside class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <p class="text-sm font-medium text-indigo-600 dark:text-indigo-300">Ngày đang chọn</p>
+              <h2 id="selectedDayTitle" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                Hôm nay
+              </h2>
+            </div>
+            <span id="selectedDayTaskCount" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              0 tác vụ
+            </span>
+          </div>
+
+          <!-- Nút thêm tác vụ vào ngày đang chọn -->
+          <button
+            id="addTaskForSelectedDateBtn"
+            type="button"
+            class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 font-semibold text-sm transition-colors"
+          >
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>+ Thêm tác vụ vào ngày này</span>
+          </button>
+
+          <!-- Danh sách tác vụ của ngày đang chọn -->
+          <div id="selectedDayTasksList" class="space-y-2.5 max-h-[460px] overflow-y-auto pr-0.5"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PHÂN HỆ 4: BẢNG THỐNG KÊ (STATISTICS & ANALYTICS)                     -->
+    <!-- ===================================================================== -->
+    <section id="section-stats" class="page-section hidden space-y-6">
+      <!-- Header Bảng thống kê & Nút xuất CSV -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Bảng thống kê &amp; Phân tích</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Theo dõi hiệu suất hoàn thành, phân bổ trạng thái và danh mục công việc</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button
+            id="statsResetDemoBtn"
+            type="button"
+            class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors"
+          >
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>Khôi phục dữ liệu mẫu</span>
+          </button>
+
+          <button
+            id="exportJsonBtn"
+            type="button"
+            class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors"
+          >
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Sao lưu JSON</span>
+          </button>
+
+          <button
+            id="importJsonBtn"
+            type="button"
+            class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors"
+          >
+            <i data-lucide="upload" class="w-4 h-4"></i>
+            <span>Nhập JSON</span>
+          </button>
+          <input id="importJsonInput" type="file" accept="application/json,.json" class="hidden" />
+
+          <button
+            id="exportCsvBtn"
+            type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-sm shadow-emerald-600/20 transition-colors"
+          >
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Xuất báo cáo CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Số liệu hiệu suất: một khối liền, ngăn bằng đường kẻ -->
+      <dl class="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-200 dark:bg-slate-800">
+        <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">Tỷ lệ hoàn thành</dt>
+          <dd id="statCompletionRate" class="font-display text-3xl font-bold text-indigo-600 dark:text-indigo-300 mt-1 tabular-nums">0%</dd>
+          <p id="statCompletionSub" class="text-xs text-slate-500 dark:text-slate-400 mt-1">0 / 0 tác vụ</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">Đúng hạn</dt>
+          <dd id="statOnTimeCount" class="font-display text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">0</dd>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Đã xong hoặc còn trong hạn</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">Quá hạn</dt>
+          <dd id="statOverdueCount" class="font-display text-3xl font-bold text-rose-600 dark:text-rose-400 mt-1 tabular-nums">0</dd>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Chưa xong và đã trễ hạn</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 p-4 sm:p-5">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">Ưu tiên cao đang mở</dt>
+          <dd id="statHighOpenCount" class="font-display text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1 tabular-nums">0</dd>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Nên xử lý trước</p>
+        </div>
+      </dl>
+
+      <!-- Hàng biểu đồ 1: Biểu đồ tròn Donut phân bổ trạng thái + Biểu đồ cột ngang Mức độ ưu tiên -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- SVG Donut Chart: Phân bổ trạng thái -->
+        <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Phân bổ theo trạng thái</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tỷ trọng tác vụ giữa các giai đoạn thực hiện</p>
+          </div>
+
+          <div class="my-5 flex flex-col sm:flex-row items-center justify-center gap-6">
+            <!-- SVG Donut -->
+            <div class="relative w-44 h-44 shrink-0">
+              <svg viewBox="0 0 110 110" class="w-full h-full -rotate-90">
+                <!-- Vòng nền -->
+                <circle
+                  cx="55"
+                  cy="55"
+                  r="42"
+                  fill="none"
+                  stroke-width="14"
+                  class="stroke-slate-100 dark:stroke-slate-800"
+                />
+                <!-- Đoạn 1: Đã hoàn thành (Emerald) -->
+                <circle
+                  id="donutSegDone"
+                  cx="55"
+                  cy="55"
+                  r="42"
+                  fill="none"
+                  stroke="#10b981"
+                  stroke-width="14"
+                  stroke-dasharray="0 264"
+                  stroke-dashoffset="0"
+                  class="transition-all duration-500"
+                />
+                <!-- Đoạn 2: Đang thực hiện (Amber) -->
+                <circle
+                  id="donutSegInProgress"
+                  cx="55"
+                  cy="55"
+                  r="42"
+                  fill="none"
+                  stroke="#f59e0b"
+                  stroke-width="14"
+                  stroke-dasharray="0 264"
+                  stroke-dashoffset="0"
+                  class="transition-all duration-500"
+                />
+                <!-- Đoạn 3: Cần làm (Indigo) -->
+                <circle
+                  id="donutSegTodo"
+                  cx="55"
+                  cy="55"
+                  r="42"
+                  fill="none"
+                  stroke="#8a9c97"
+                  stroke-width="14"
+                  stroke-dasharray="0 264"
+                  stroke-dashoffset="0"
+                  class="transition-all duration-500"
+                />
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                <span id="donutCenterTotal" class="text-2xl font-bold text-slate-900 dark:text-white">0</span>
+                <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Tổng tác vụ</span>
+              </div>
+            </div>
+
+            <!-- Chú thích Donut -->
+            <div id="donutLegend" class="w-full space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- Biểu đồ cột ngang: Theo mức độ ưu tiên -->
+        <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">Thống kê theo mức độ ưu tiên</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">So sánh tổng số lượng và tỷ lệ hoàn thành giữa các mức ưu tiên</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>Đã xong</span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-200 dark:bg-slate-700"></span>Chưa xong</span>
+            </div>
+          </div>
+
+          <div id="priorityChartContainer" class="space-y-5 my-auto"></div>
+        </div>
+      </div>
+
+      <!-- Biểu đồ tiến độ theo danh mục -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Tiến độ theo từng danh mục</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Hiệu suất hoàn thành trên 5 nhóm lĩnh vực hoạt động</p>
+        </div>
+
+        <div id="categoryChartGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"></div>
+      </div>
+
+      <!-- Bảng thống kê chi tiết -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Bảng thống kê chi tiết theo danh mục</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Số liệu tổng hợp đầy đủ trạng thái, quá hạn và tỷ lệ hoàn thành</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/70 text-xs font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800">
+                <th class="py-3.5 px-4 sm:px-6">Danh mục</th>
+                <th class="py-3.5 px-3 text-center">Tổng số</th>
+                <th class="py-3.5 px-3 text-center">Cần làm</th>
+                <th class="py-3.5 px-3 text-center">Đang làm</th>
+                <th class="py-3.5 px-3 text-center">Hoàn thành</th>
+                <th class="py-3.5 px-3 text-center">Quá hạn</th>
+                <th class="py-3.5 px-4 sm:px-6 text-right">Tỷ lệ %</th>
+              </tr>
+            </thead>
+            <tbody id="statsDetailTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+            <tfoot id="statsDetailTableFoot" class="bg-slate-50/80 dark:bg-slate-800/50 font-semibold border-t border-slate-200 dark:border-slate-700"></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="border-t border-slate-200/80 dark:border-slate-800 py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+      <p>TaskFlow — Ứng dụng Quản lý Tác vụ, Lịch trình &amp; Thống kê hiệu suất.</p>
+      <button id="resetDemoDataBtn" type="button" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+        Khôi phục 8 tác vụ mẫu
+      </button>
+    </div>
+  </footer>
+
+  <!-- ==================== MODAL THÊM / SỬA TÁC VỤ ==================== -->
+  <div
+    id="taskModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="taskModalTitle"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+  >
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+      <!-- Header Modal -->
+      <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 id="taskModalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Thêm tác vụ mới</h3>
+        <button
+          id="closeTaskModalBtn"
+          type="button"
+          aria-label="Đóng cửa sổ"
+          class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Form Modal -->
+      <form id="taskForm" class="p-6 space-y-4 overflow-y-auto" novalidate>
+        <input type="hidden" id="taskIdInput" />
+
+        <!-- Tiêu đề -->
+        <div>
+          <label for="taskTitleInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Tiêu đề tác vụ <span class="text-rose-500">*</span>
+          </label>
+          <input
+            id="taskTitleInput"
+            type="text"
+            required
+            placeholder="Ví dụ: Hoàn thành báo cáo tuần..."
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800"
+          />
+          <p id="titleErrorMsg" class="hidden text-xs text-rose-500 mt-1">Vui lòng nhập tiêu đề tác vụ.</p>
+        </div>
+
+        <!-- Mô tả chi tiết -->
+        <div>
+          <label for="taskDescInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Mô tả chi tiết
+          </label>
+          <textarea
+            id="taskDescInput"
+            rows="3"
+            placeholder="Thêm ghi chú, các bước thực hiện hoặc liên kết liên quan..."
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Mức độ ưu tiên & Danh mục -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="taskPriorityInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Mức độ ưu tiên
+            </label>
+            <select
+              id="taskPriorityInput"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="high">Cao</option>
+              <option value="medium" selected>Trung bình</option>
+              <option value="low">Thấp</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="taskCategoryInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Danh mục
+            </label>
+            <select
+              id="taskCategoryInput"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="work">Công việc</option>
+              <option value="personal">Cá nhân</option>
+              <option value="study">Học tập</option>
+              <option value="health">Sức khỏe</option>
+              <option value="other">Khác</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Ngày hết hạn & Trạng thái -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="taskDueDateInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Ngày hết hạn
+            </label>
+            <input
+              id="taskDueDateInput"
+              type="date"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label for="taskStatusInput" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Trạng thái
+            </label>
+            <select
+              id="taskStatusInput"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="todo">Cần làm</option>
+              <option value="in_progress">Đang thực hiện</option>
+              <option value="done">Đã hoàn thành</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Nút lưu / hủy -->
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+          <button
+            id="cancelTaskModalBtn"
+            type="button"
+            class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            Hủy bỏ
+          </button>
+          <button
+            type="submit"
+            id="saveTaskBtn"
+            class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-sm shadow-indigo-600/25 transition-colors"
+          >
+            Lưu tác vụ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL XÁC NHẬN XÓA ==================== -->
+  <div
+    id="deleteModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="deleteModalTitle"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+  >
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <h3 id="deleteModalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Xác nhận xóa tác vụ</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Bạn có chắc chắn muốn xóa tác vụ <strong id="deleteTaskName" class="text-slate-900 dark:text-white"></strong>? Hành động này không thể hoàn tác.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button
+          id="cancelDeleteBtn"
+          type="button"
+          class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          Hủy
+        </button>
+        <button
+          id="confirmDeleteBtn"
+          type="button"
+          class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium shadow-sm shadow-rose-600/25 transition-colors"
+        >
+          Xóa tác vụ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toastContainer" role="status" aria-live="polite" class="fixed bottom-20 md:bottom-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-[calc(100%-2rem)] pointer-events-none"></div>
+
+  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+  <script src="js/app.js"></script>
+</body>
+</html>
